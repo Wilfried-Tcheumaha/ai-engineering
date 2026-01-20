@@ -25,7 +25,7 @@ def rag(
     answer= rag_pipeline(payload.query)
 
     return RAGResponse(request_id=request.state.request_id,
-    answer =answer
+    answer =answer["answer"]
     )
 
 api_router=APIRouter()
