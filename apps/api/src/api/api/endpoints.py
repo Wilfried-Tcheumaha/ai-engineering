@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request, APIRouter
-from api.api.models import RAGRequest,RAGResponse
-from api.agents.retrieval_generation import rag_pipeline
-from qdrant_client import QdrantClient
+from api.api.models import RAGRequest,RAGResponse, RAGUsedContext
+from api.agents.retrieval_generation import rag_pipeline_wrapper
 
 
 import logging
@@ -14,7 +13,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-qdrant_client = QdrantClient(url="http://qdrant:6333")
 
 rag_router= APIRouter()
 
@@ -25,10 +23,12 @@ def rag(
     request: Request,
     payload:RAGRequest
 ) -> RAGResponse:
-    answer= rag_pipeline(payload.query, qdrant_client)
+    answer= rag_pipeline_wrapper(payload.query)
 
-    return RAGResponse(request_id=request.state.request_id,
-    answer =answer["answer"]
+    return RAGResponse(
+        request_id=request.state.request_id,
+        answer =answer["answer"],
+        used_context=[RAGUsedContext(**used_context) for used_context in answer["used_context"]]
     )
 
 api_router=APIRouter()
