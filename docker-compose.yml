@@ -30,4 +30,6 @@ services:
       - 6334:6334
     volumes:
       - ./qdrant_storage:/qdrant/storage:z
+    environment:
+      QDRANT__SERVICE__ENABLE_INFERENCE: "true"
     restart: unless-stopped
