@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 rag_router= APIRouter()
 
-
-
 @rag_router.post("/")
 def rag(
     request: Request,

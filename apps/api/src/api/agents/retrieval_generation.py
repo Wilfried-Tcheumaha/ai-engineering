@@ -177,10 +177,9 @@ def rag_pipeline_wrapper(question, top_k=5):
                 "description":item.description
             })
 
-        return{
-            "answer":result["answer"],
-            "used_context":used_context
-
-        }
+    return {
+        "answer":result["answer"],
+        "used_context":used_context,
+    }
 
 
