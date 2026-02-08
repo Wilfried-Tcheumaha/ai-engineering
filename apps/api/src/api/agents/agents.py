@@ -8,7 +8,7 @@ from api.agents.utils.prompt_management import prompt_template_config
 from api.agents.utils.utils import format_ai_message
 from pydantic import BaseModel, Field
 from typing import List
-
+from langsmith import get_current_run_tree,traceable
 
 ### QnA Agent Response Model
 
@@ -65,6 +65,15 @@ def agent_node(state) -> dict:
         temperature=0.5,
    )
 
+   current_run = get_current_run_tree()
+
+   if current_run:
+        current_run.metadata["usage_metadata"] = {
+            "input_tokens": raw_response.usage.prompt_tokens,
+            "output_tokens": raw_response.usage.completion_tokens,
+            "total_tokens": raw_response.usage.total_tokens
+        }
+
    ai_message = format_ai_message(response)
 
    return {
@@ -106,8 +115,21 @@ def intent_router_node(state):
         messages=[{"role": "system", "content": prompt}, *conversation],
         temperature=0.5,
    )
+   current_run = get_current_run_tree()
+
+   if current_run:
+        current_run.metadata["usage_metadata"] = {
+            "input_tokens": raw_response.usage.prompt_tokens,
+            "output_tokens": raw_response.usage.completion_tokens,
+            "total_tokens": raw_response.usage.total_tokens
+        }
+
+        trace_id=str(getattr(current_run, "trace_id", current_run.id))
+   else:
+        trace_id=None
 
    return {
       "question_relevant": response.question_relevant,
-      "answer": response.answer
+      "answer": response.answer,
+      "trace_id": trace_id
       }
