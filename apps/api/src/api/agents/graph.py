@@ -5,7 +5,7 @@ import numpy as np
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from typing import Annotated, List, Any, Dict
 from api.agents.agents import ToolCall, RAGUsedContext, agent_node, intent_router_node
-from api.agents.tools import get_formatted_context
+from api.agents.tools import get_formatted_context, get_formatted_reviews_context
 from api.agents.utils.utils import get_tool_descriptions
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
@@ -50,7 +50,7 @@ def intent_router_conditional_edges(state: State):
 
 workflow = StateGraph(State)
 
-tools = [get_formatted_context]
+tools = [get_formatted_context, get_formatted_reviews_context]
 tool_node = ToolNode(tools)
 tool_descriptions = get_tool_descriptions(tools)
 
