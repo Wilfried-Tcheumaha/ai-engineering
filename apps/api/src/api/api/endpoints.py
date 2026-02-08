@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Request, APIRouter
-from api.api.models import RAGRequest,RAGResponse, RAGUsedContext
-from api.agents.graph import rag_agent_wrapper
+from fastapi.responses import StreamingResponse
+from api.api.models import RAGRequest,RAGResponse, RAGUsedContext,FeedbackRequest, FeedbackResponse
+from api.agents.graph import rag_agent_stream_wrapper
 from api.api.processors import submit_feedback
-from api.api.models import FeedbackRequest, FeedbackResponse
 from api.api.processors.submit_feedback import submit_feedback
 
 
@@ -24,14 +24,12 @@ feedback_router= APIRouter()
 def rag(
     request: Request,
     payload:RAGRequest
-) -> RAGResponse:
-    answer= rag_agent_wrapper(payload.query,payload.thread_id )
+) -> StreamingResponse:
 
-    return RAGResponse(
-        request_id=request.state.request_id,
-        answer =answer["answer"],
-        used_context=[RAGUsedContext(**used_context) for used_context in answer["used_context"]],
-        trace_id=answer["trace_id"]
+
+    return StreamingResponse(
+       rag_agent_stream_wrapper(payload.query, payload.thread_id),
+       media_type="text/event-stream"
     )
 
 @feedback_router.post("/")
