@@ -1,13 +1,20 @@
 import streamlit as st
 import requests
 from chatbot_ui.core.config import config
+import uuid
 
 st.set_page_config(
     page_title="Ecommerce Assistant",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+def get_sessionid():
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+    return st.session_state.session_id
 
+
+session_id = get_sessionid()
 
 def api_call(method, url, **kwargs):
 
@@ -77,7 +84,7 @@ if prompt := st.chat_input("Hello! How can I assist you today?"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        status, output = api_call("post", f"{config.API_URL}/rag", json={"query": prompt})
+        status, output = api_call("post", f"{config.API_URL}/rag", json={"query": prompt, "thread_id": session_id})
 
         answer = output["answer"]
         used_context = output["used_context"]
