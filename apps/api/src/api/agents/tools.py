@@ -1,14 +1,12 @@
 import openai
 from langsmith import traceable, get_current_run_tree
 from qdrant_client import QdrantClient
-from qdrant_client.models import Prefetch, FusionQuery, Document
-from qdrant_client.models import Filter, FieldCondition, MatchAny
+from qdrant_client.models import Prefetch, FusionQuery, Document, Filter, FieldCondition, MatchAny
 from qdrant_client.models import MatchValue
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import numpy as np
-
 
 
 @traceable(
@@ -32,12 +30,15 @@ def get_embedding(text, model="text-embedding-3-small"):
 
     return response.data[0].embedding
 
-### Item description retrieval tool
+
+### Item Description Retrieval Tool
+
+
 @traceable(
     name="retrieve_data",
     run_type="retriever"
 )
-def retrieve_data(query, k=5):
+def retrieve_items_data(query, k=5):
 
     query_embedding = get_embedding(query)
 
@@ -87,7 +88,7 @@ def retrieve_data(query, k=5):
     name="format_retrieved_context",
     run_type="prompt"
 )
-def process_context(context):
+def process_items_context(context):
 
     formatted_context = ""
 
@@ -109,12 +110,14 @@ def get_formatted_items_context(query: str, top_k: int = 5) -> str:
         A string of the top k context chunks with IDs and average ratings prepending each chunk, each representing an inventory item for a given query.
     """
 
-    context = retrieve_data(query, top_k)
-    formatted_context = process_context(context)
+    context = retrieve_items_data(query, top_k)
+    formatted_context = process_items_context(context)
 
     return formatted_context
 
-### Item reviews retrieval tool
+
+### Item Reviews Retrieval Tool
+
 
 @traceable(
     name="retrieve_reviews_data",
@@ -197,12 +200,10 @@ def get_formatted_reviews_context(query: str, item_list: list, top_k: int = 15) 
     return formatted_context
 
 
-### Add to Shopping Cart Tools
+#### Shopping Cart Agent Tools
 
-@traceable(
-    name="add_to_shopping_cart",
-    run_type="tool"
-)
+### Add to Shopping Cart Tool
+
 def add_to_shopping_cart(items: list[dict], user_id: str, cart_id: str) -> str:
 
     """Add a list of provided items to the shopping cart.
@@ -299,11 +300,10 @@ def add_to_shopping_cart(items: list[dict], user_id: str, cart_id: str) -> str:
             
     return f"Added {items} to the shopping cart."
 
-### Retrieve from Shopping Cart Tools
-@traceable(
-    name="get_shopping_cart",
-    run_type="tool"
-)
+
+
+### Get Shopping Cart Tool
+
 def get_shopping_cart(user_id: str, cart_id: str) -> list[dict]:
 
     """
@@ -341,11 +341,9 @@ def get_shopping_cart(user_id: str, cart_id: str) -> list[dict]:
 
         return [dict(row) for row in cursor.fetchall()]
 
-### Remove from Shopping Cart Tools
-@traceable(
-    name="remove_from_cart",
-    run_type="tool"
-)
+
+### Remove from Shopping Cart Tool
+
 def remove_from_cart(product_id: str, user_id: str, cart_id: str) -> str:
 
     """
