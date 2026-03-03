@@ -105,6 +105,7 @@ def product_qa_agent(state, models=["gpt-4.1", "groq/llama-3.3-70b-versatile"]) 
             "input_tokens": raw_response.usage.prompt_tokens,
             "output_tokens": raw_response.usage.completion_tokens,
             "total_tokens": raw_response.usage.total_tokens
+            #  "cached_tokens": raw_response.usage.prompt_tokens_details.cached_tokens
         }
 
    ai_message = format_ai_message(response)
@@ -168,6 +169,7 @@ def shopping_cart_agent(state, models=["gpt-4.1", "groq/llama-3.3-70b-versatile"
             "input_tokens": raw_response.usage.prompt_tokens,
             "output_tokens": raw_response.usage.completion_tokens,
             "total_tokens": raw_response.usage.total_tokens
+            # "cached_tokens": raw_response.usage.prompt_tokens_details.cached_tokens
         }
 
    ai_message = format_ai_message(response)
@@ -228,6 +230,7 @@ def warehouse_manager_agent(state, models=["gpt-4.1", "groq/llama-3.3-70b-versat
             "input_tokens": raw_response.usage.prompt_tokens,
             "output_tokens": raw_response.usage.completion_tokens,
             "total_tokens": raw_response.usage.total_tokens
+            # "cached_tokens": raw_response.usage.prompt_tokens_details.cached_tokens
         }
 
    ai_message = format_ai_message(response)
@@ -287,6 +290,7 @@ def coordinator_agent(state, models=["gpt-4.1", "groq/llama-3.3-70b-versatile"])
             "input_tokens": raw_response.usage.prompt_tokens,
             "output_tokens": raw_response.usage.completion_tokens,
             "total_tokens": raw_response.usage.total_tokens
+            # "cached_tokens": raw_response.usage.prompt_tokens_details.cached_tokens
         }
         trace_id = str(getattr(current_run, "trace_id", current_run.id))
     
