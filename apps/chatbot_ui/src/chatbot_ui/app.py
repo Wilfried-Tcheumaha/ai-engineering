@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 from chatbot_ui.core.config import config
@@ -5,10 +6,7 @@ import uuid
 import logging
 import json
 
-logging.basicConfig(
-    level=logging.INFO,
-)
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -17,13 +15,14 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-def get_sessionid():
-    if "session_id" not in st.session_state:
+
+def get_session_id():
+    if 'session_id' not in st.session_state:
         st.session_state.session_id = str(uuid.uuid4())
     return st.session_state.session_id
 
+session_id = get_session_id()
 
-session_id = get_sessionid()
 
 def api_call(method, url, **kwargs):
 
@@ -56,6 +55,8 @@ def api_call(method, url, **kwargs):
     except Exception as e:
         _show_error_popup(f"An unexpected error occurred: {str(e)}")
         return False, {"message": str(e)}
+
+
 def api_call_stream(method, url, **kwargs):
 
     def _show_error_popup(message):
@@ -80,6 +81,7 @@ def api_call_stream(method, url, **kwargs):
         _show_error_popup(f"An unexpected error occurred: {str(e)}")
         return False, {"message": str(e)}
 
+
 def submit_feedback(feedback_type=None, feedback_text=""):
     """Submit feedback to the API endpoint"""
 
@@ -98,21 +100,46 @@ def submit_feedback(feedback_type=None, feedback_text=""):
         "thread_id": session_id,
         "feedback_source_type": "api"
     }
+
     logger.info(f"Feedback data: {feedback_data}")
     
     status, response = api_call("post", f"{config.API_URL}/submit_feedback", json=feedback_data)
     return status, response
 
 
+@st.dialog("🔔 Human Review Required")
+def hitl_popup(task_data: dict):
+    """Modal popup that blocks the graph until human responds."""
+    st.markdown(f"**Agent wants to proceed with:**")
+    st.json(task_data)
+    
+    feedback = st.text_area("Your feedback (optional):", key="hitl_feedback")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("✅ Approve", type="primary", use_container_width=True):
+            st.session_state.pending_hitl = None
+            st.session_state.hitl_decision = {"approved": True, "feedback": feedback}
+            st.rerun()
+    with col2:
+        if st.button("❌ Reject", use_container_width=True):
+            st.session_state.pending_hitl = None
+            st.session_state.hitl_decision = {"approved": False, "feedback": feedback}
+            st.rerun()
+
+
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Hello! How can I assist you today?"}]
-
 
 if "used_context" not in st.session_state:
     st.session_state.used_context = []
 
 if "shopping_cart" not in st.session_state:
     st.session_state.shopping_cart = []
+
+if "pending_hitl" not in st.session_state:
+    st.session_state.pending_hitl = None
+
 
 # Initialize feedback states (simplified)
 if "latest_feedback" not in st.session_state:
@@ -127,6 +154,59 @@ if "feedback_submission_status" not in st.session_state:
 if "trace_id" not in st.session_state:
     st.session_state.trace_id = None
 
+if st.session_state.pending_hitl:
+    hitl_popup(st.session_state.pending_hitl)
+
+
+if "hitl_decision" not in st.session_state:
+    st.session_state.hitl_decision = None
+
+# Process HITL decision - stream the resumed graph response
+if st.session_state.hitl_decision is not None:
+    decision = st.session_state.hitl_decision
+    st.session_state.hitl_decision = None
+
+    with st.chat_message("assistant"):
+        status_placeholder = st.empty()
+        message_placeholder = st.empty()
+
+        for line in api_call_stream(
+            "post",
+            f"{config.API_URL}/send_hitl_response",
+            json={
+                "thread_id": session_id,
+                "approved": decision["approved"],
+                "feedback": decision.get("feedback"),
+            },
+            stream=True,
+            headers={"Accept": "text/event-stream"},
+        ):
+            line_text = line.decode("utf-8")
+            if line_text.startswith("data: "):
+                data = line_text[6:]
+                try:
+                    output = json.loads(data)
+                    if output["type"] == "final_result":
+                        answer = output["data"]["answer"]
+                        used_context = output["data"]["used_context"]
+                        trace_id = output["data"]["trace_id"]
+                        shopping_cart = output["data"]["shopping_cart"]
+
+                        st.session_state.used_context = used_context
+                        st.session_state.messages.append({"role": "assistant", "content": answer})
+                        st.session_state.trace_id = trace_id
+                        st.session_state.shopping_cart = shopping_cart
+                        st.session_state.latest_feedback = None
+                        st.session_state.show_feedback_box = False
+                        st.session_state.feedback_submission_status = None
+
+                        status_placeholder.empty()
+                        message_placeholder.markdown(answer)
+                        break
+                except json.JSONDecodeError:
+                    status_placeholder.markdown(f"*{data}*")
+
+    st.rerun()
 
 with st.sidebar:
     # Create tabs in the sidebar
@@ -158,6 +238,7 @@ with st.sidebar:
                 st.divider()
         else:
             st.info("Your cart is empty")
+
 
 for idx, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
@@ -191,7 +272,7 @@ for idx, message in enumerate(st.session_state.messages):
                             st.session_state.feedback_submission_status = "error"
                             st.error("Failed to submit feedback. Please try again.")
                     st.rerun()
-
+            
             # Show feedback status message
             if st.session_state.latest_feedback and st.session_state.feedback_submission_status == "success":
                 if st.session_state.latest_feedback == "positive":
@@ -234,7 +315,6 @@ for idx, message in enumerate(st.session_state.messages):
                     if st.button("Close", key=f"close_feedback_{len(st.session_state.messages)}"):
                         st.session_state.show_feedback_box = False
                         st.rerun()
-            
 
 
 if prompt := st.chat_input("Hello! How can I assist you today?"):
@@ -243,6 +323,7 @@ if prompt := st.chat_input("Hello! How can I assist you today?"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
+
         status_placeholder = st.empty()
         message_placeholder = st.empty()
 
@@ -261,10 +342,11 @@ if prompt := st.chat_input("Hello! How can I assist you today?"):
                     output = json.loads(data)
 
                     if output["type"] == "final_result":
+
                         answer = output["data"]["answer"]
                         used_context = output["data"]["used_context"]
                         trace_id = output["data"]["trace_id"]
-                        shopping_cart=output["data"]["shopping_cart"]
+                        shopping_cart = output["data"]["shopping_cart"]
                         
                         st.session_state.used_context = used_context
                         st.session_state.messages.append({"role": "assistant", "content": answer})
@@ -278,7 +360,10 @@ if prompt := st.chat_input("Hello! How can I assist you today?"):
                         status_placeholder.empty()
                         message_placeholder.markdown(answer)
                         break
-                
+
+                    elif output["type"] == "hitl_interrupt":
+                        st.session_state.pending_hitl = output["data"]
+                        break
                 except json.JSONDecodeError:
                     status_placeholder.markdown(f"*{data}*")
 
