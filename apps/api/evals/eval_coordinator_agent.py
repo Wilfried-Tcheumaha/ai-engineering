@@ -21,7 +21,7 @@ def next_agent_evaluator(run, example):
 
 results = ls_client.evaluate(
     lambda x: coordinator_agent(State(messages=x["messages"])),
-    data="coordinator_eval_dataset",
+    data="coordinator-eval-dataset",
     # num_repetitions=2,
     max_concurrency=5,
     evaluators=[
